@@ -1,0 +1,55 @@
+public function chose(Request $request)
+{
+     $validatedData = $request->validate([
+        'Requests_ids' => 'required|array',
+        'Valid' => 'required|max:1',
+
+    ]);
+    
+    $user = Auth::user();
+    $query = AdressChangeLog::query();
+    if($user->role_id == 64319){
+            $query->whereHas('oldOrder', function (Builder $query) {
+                $query->where('customer_id',Customer::where("user_id",$user->id)->value("id"));
+            });
+    }
+    
+        $AdressChangeLogs = $query->whereIn("id",$request->Requests_ids);
+        
+        if($request->Valid == 1){
+            
+             $AdressChangeLogs->update([
+                "accept" => 1,
+                "refuse" => 0
+            ]);
+            
+           
+                foreach($AdressChangeLogs as $log){
+                    $oldOrder = Order::find($log->old_order_id);
+                    $oldOrderRef = $oldOrder->ref;
+                    $oldOrder->update([
+                        "ref" => "CA-".$oldOrder->ref,
+                        "order_status_id" => 36,
+                    ]);
+                    
+                    $newOrder = Order::find($log->new_order_id);
+                    $newOrder->update([
+                        "ref" => $oldOrderRef,
+                        "order_status_id" => 34,
+                    ]);
+                    
+                }
+            
+            
+        }else if($request->Valid == 0){
+            $AdressChangeLogs->update([
+                "accept" => 0,
+                "refuse" => 1
+            ]);
+        }
+        
+    
+    return response()->json([ "success"=> "Le changement d'adresse est bien effectue"]);
+
+    
+}
